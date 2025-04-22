@@ -11,6 +11,7 @@ import time
 import random
 from tool_wrapper import ToolWrapper
 from PIL import Image
+import glob
 
 # Load environment variables
 dotenv.load_dotenv()
@@ -180,6 +181,23 @@ if run_button:
     # time.sleep(20)
     
     st.markdown(ToolWrapper.model_training(training_data))
+
+    # Look for any common model file extensions
+    model_files = glob.glob("*.keras") + glob.glob("*.h5") + glob.glob("*.pb") + glob.glob("*.pt") + glob.glob("*.pkl") + glob.glob("*.sav")
+
+    if model_files:
+        model_path = model_files[0]  # Take the first found model
+        st.success(f"Found trained model: `{model_path}`")
+
+        with open(model_path, "rb") as f:
+            st.download_button(
+                label="⬇️ Download Trained Model",
+                data=f,
+                file_name=os.path.basename(model_path),
+                mime="application/octet-stream"
+            )
+    else:
+        st.warning("No trained model file found (e.g., .keras, .h5, .pt, .pb, etc).")
     st.session_state.do_print = False
     # st.write("The model is trained using the CNN algorithm.")
     # st.write("Training Accuracy: 93%")
@@ -188,63 +206,63 @@ if run_button:
     st.session_state.show_chat = True
 
     # Set folder path
-    cat_folder = Path(r"C:\Users\pchanchlani\Downloads\WorkloadsAgentAutogen\matched_images\cat")
-    dog_folder = Path(r"C:\Users\pchanchlani\Downloads\WorkloadsAgentAutogen\matched_images\dog")
-    incorrect_folder = Path(r"C:\Users\pchanchlani\Downloads\WorkloadsAgentAutogen\matched_images\incorrect")
+    # cat_folder = Path(r"C:\Users\pchanchlani\Downloads\WorkloadsAgentAutogen\matched_images\cat")
+    # dog_folder = Path(r"C:\Users\pchanchlani\Downloads\WorkloadsAgentAutogen\matched_images\dog")
+    # incorrect_folder = Path(r"C:\Users\pchanchlani\Downloads\WorkloadsAgentAutogen\matched_images\incorrect")
     
-    # Step 1: Initialize session state only once
-    if "tagged_images" not in st.session_state:
+    # # Step 1: Initialize session state only once
+    # if "tagged_images" not in st.session_state:
         
-        tagged_images = []
-        # Load images and label them
-        for img in cat_folder.glob("*.jpg"):
-            tagged_images.append(("Cat", img))
-        for img in dog_folder.glob("*.jpg"):
-            tagged_images.append(("Dog", img))
-        for img in incorrect_folder.glob("*.jpg"):
-            tagged_images.append(("Incorrect", img))
+    #     tagged_images = []
+    #     # Load images and label them
+    #     for img in cat_folder.glob("*.jpg"):
+    #         tagged_images.append(("Cat", img))
+    #     for img in dog_folder.glob("*.jpg"):
+    #         tagged_images.append(("Dog", img))
+    #     for img in incorrect_folder.glob("*.jpg"):
+    #         tagged_images.append(("Incorrect", img))
 
-        # Shuffle and store in session
-        random.shuffle(tagged_images)
-        st.session_state.tagged_images = tagged_images[:32]  # Limit to first 32 if more
-        st.session_state.current_index = 0
-        st.session_state.total_images = len(st.session_state.tagged_images)
+    #     # Shuffle and store in session
+    #     random.shuffle(tagged_images)
+    #     st.session_state.tagged_images = tagged_images[:32]  # Limit to first 32 if more
+    #     st.session_state.current_index = 0
+    #     st.session_state.total_images = len(st.session_state.tagged_images)
 
-    # Placeholder for image display
-    image_placeholder = st.empty()
-    text_placeholder = st.empty()
+    # # Placeholder for image display
+    # image_placeholder = st.empty()
+    # text_placeholder = st.empty()
 
 
-    num_images = len(st.session_state.tagged_images)
+    # num_images = len(st.session_state.tagged_images)
 
-    # Loop through the images and display them in batches of 4 per row
-    for i in range(0, num_images, 11):
-        # Create 4 columns for the current row (or fewer if the remaining images are less than 4)
-        cols = st.columns(11)
+    # # Loop through the images and display them in batches of 4 per row
+    # for i in range(0, num_images, 11):
+    #     # Create 4 columns for the current row (or fewer if the remaining images are less than 4)
+    #     cols = st.columns(11)
 
-        # Display up to 4 images in the current row
-        for j in range(11):
-            index = i + j
-            if index < num_images:
-                tag, img_path = st.session_state.tagged_images[index]
-                if tag == 'Cat' or tag == 'Dog':
-                    caption = (
-                        f'<p style="color: green; font-size: 18px; '
-                        f'padding-left: 45px; "><strong>Class: {tag}</strong></p>'
-                    )
-                else:
-                    caption = (
-                        f'<p style="color: red; font-size: 18px; '
-                        f'padding-left: 35px; "><strong>Class: {tag}</strong></p>'
-                    )
+    #     # Display up to 4 images in the current row
+    #     for j in range(11):
+    #         index = i + j
+    #         if index < num_images:
+    #             tag, img_path = st.session_state.tagged_images[index]
+    #             if tag == 'Cat' or tag == 'Dog':
+    #                 caption = (
+    #                     f'<p style="color: green; font-size: 18px; '
+    #                     f'padding-left: 45px; "><strong>Class: {tag}</strong></p>'
+    #                 )
+    #             else:
+    #                 caption = (
+    #                     f'<p style="color: red; font-size: 18px; '
+    #                     f'padding-left: 35px; "><strong>Class: {tag}</strong></p>'
+    #                 )
 
                 
-                # Open and display the image using its path
-                cols[j].image(Image.open(img_path), caption="", width=180)
-                cols[j].markdown(caption, unsafe_allow_html=True)  # Allow HTML in caption
-                time.sleep(2)
+    #             # Open and display the image using its path
+    #             cols[j].image(Image.open(img_path), caption="", width=180)
+    #             cols[j].markdown(caption, unsafe_allow_html=True)  # Allow HTML in caption
+    #             time.sleep(2)
     
-    st.success("Model Tested on MAIA.")
+    # st.success("Model Tested on MAIA.")
 
     
 
