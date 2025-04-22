@@ -34,9 +34,11 @@ for key in [
         else:
             st.session_state[key] = None if key == "uploaded_image" else False
 
-# --- Sidebar ---
-with st.sidebar:
-    # Model training inputs
+# --- Main Content (Left side) ---
+col1, col2 = st.columns([3, 1])
+
+with col1:
+    # --- Model training inputs ---
     st.subheader("🧠 Train a Model")
 
     task_desc = st.text_input("Enter the task description", "train model")
@@ -86,7 +88,7 @@ with st.sidebar:
 
     st.divider()
 
-    # Upload an image section
+    # --- Upload an image section ---
     st.subheader("🖼️ Test Your Model Now")
     uploaded_image = st.file_uploader("Upload an image to predict", type=["png", "jpg", "jpeg"])
 
@@ -120,52 +122,54 @@ with st.sidebar:
         st.session_state.last_response = None
         st.session_state.last_powershell_command = None
 
-# --- Main Chat Section ---
-st.subheader("💬 Agent Chat Log")
-for msg in st.session_state.messages:
-    with st.chat_message(msg["role"]):
-        st.markdown(msg["content"])
+# --- Sidebar (Right side) ---
+with st.sidebar:
+    # --- Agent Chat Log ---
+    st.subheader("💬 Agent Chat Log")
+    for msg in st.session_state.messages:
+        with st.chat_message(msg["role"]):
+            st.markdown(msg["content"])
 
-# --- Chat Input ---
-if prompt := st.chat_input("Your message"):
-    st.session_state.messages.append({"role": "user", "content": prompt})
-    with st.chat_message("user"):
-        st.markdown(prompt)
-    st.session_state.last_prompt = prompt
-
-    with st.chat_message("assistant"):
-        try:
-            response = asyncio.run(chat_with_agent(st.session_state.messages))
-            st.session_state.messages.append({"role": "assistant", "content": response})
-            st.session_state.last_response = response
-            st.markdown(response)
-        except Exception as e:
-            error_message = f"⚠️ Error generating response: {str(e)}"
-            st.session_state.messages.append({"role": "assistant", "content": error_message})
-            st.session_state.last_response = None
-            st.error(error_message)
-
-# --- Regenerate Response Button ---
-if st.session_state.get("last_prompt"):
-    st.markdown("---")
-    if st.button("🔄 Regenerate Response"):
-        if st.session_state.messages and st.session_state.messages[-1]["role"] == "assistant":
-            st.session_state.messages.pop()
-
-        st.session_state.messages.append({"role": "user", "content": st.session_state.last_prompt})
-
+    # --- Chat Input ---
+    if prompt := st.chat_input("Your message"):
+        st.session_state.messages.append({"role": "user", "content": prompt})
         with st.chat_message("user"):
-            st.markdown(st.session_state.last_prompt)
+            st.markdown(prompt)
+        st.session_state.last_prompt = prompt
 
         with st.chat_message("assistant"):
             try:
-                new_response = asyncio.run(chat_with_agent(st.session_state.messages))
-                st.session_state.messages.append({"role": "assistant", "content": new_response})
-                st.session_state.last_response = new_response
-                st.markdown(new_response)
-
+                response = asyncio.run(chat_with_agent(st.session_state.messages))
+                st.session_state.messages.append({"role": "assistant", "content": response})
+                st.session_state.last_response = response
+                st.markdown(response)
             except Exception as e:
-                error_message = f"⚠️ Error regenerating response: {str(e)}"
+                error_message = f"⚠️ Error generating response: {str(e)}"
                 st.session_state.messages.append({"role": "assistant", "content": error_message})
                 st.session_state.last_response = None
                 st.error(error_message)
+
+    # --- Regenerate Response Button ---
+    if st.session_state.get("last_prompt"):
+        st.markdown("---")
+        if st.button("🔄 Regenerate Response"):
+            if st.session_state.messages and st.session_state.messages[-1]["role"] == "assistant":
+                st.session_state.messages.pop()
+
+            st.session_state.messages.append({"role": "user", "content": st.session_state.last_prompt})
+
+            with st.chat_message("user"):
+                st.markdown(st.session_state.last_prompt)
+
+            with st.chat_message("assistant"):
+                try:
+                    new_response = asyncio.run(chat_with_agent(st.session_state.messages))
+                    st.session_state.messages.append({"role": "assistant", "content": new_response})
+                    st.session_state.last_response = new_response
+                    st.markdown(new_response)
+
+                except Exception as e:
+                    error_message = f"⚠️ Error regenerating response: {str(e)}"
+                    st.session_state.messages.append({"role": "assistant", "content": error_message})
+                    st.session_state.last_response = None
+                    st.error(error_message)
