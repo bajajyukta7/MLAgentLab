@@ -39,90 +39,139 @@ col1, col2 = st.columns([3, 1])
 
 with col1:
     # --- Model training inputs ---
-    st.subheader("🧠 Train a Model")
+    st.header("Train Your Model")
 
-    task_desc = st.text_input("Enter the task description", "train model")
-    github_url = st.text_input("Enter GitHub dataset link", "")
-    options = st.multiselect("Select the data options", ["Training", "Testing", "Validation"])
-    train_split = st.slider("Training data %", 10, 90, 70, 5)
-    test_val_split = 100 - train_split
-    st.text(f"Testing + Validation: {test_val_split}%")
-    model = st.selectbox("Choose a model", ["CNN", "RNN", "SVM", "Random Forest", "Auto Model"], index=4)
+    with st.expander("Start training:", expanded=False):
+        task_desc = st.text_input("Enter the task description", "train model")
+        github_url = st.text_input("Enter GitHub dataset link", "")
+        options = st.multiselect("Select the data options", ["Training", "Testing", "Validation"])
+        train_split = st.slider("Training data %", 10, 90, 70, 5)
+        test_val_split = 100 - train_split
+        st.text(f"Testing + Validation: {test_val_split}%")
+        model = st.selectbox("Choose a model", ["CNN", "RNN", "SVM", "Random Forest", "Auto Model"], index=4)
 
-    if st.button("Run"):
-        training_data = (
-            f"Task description: {task_desc}\n"
-            f"GitHub Dataset URL: {github_url}\n"
-            f"Selected data options: {', '.join(options)}\n"
-            f"Training percentage: {train_split}%\n"
-            f"Testing + Validation percentage: {test_val_split}%\n"
-            f"Model chosen: {model}\n"
-        )
+        if st.button("Run"):
+            training_data = (
+                f"Task description: {task_desc}\n"
+                f"GitHub Dataset URL: {github_url}\n"
+                f"Selected data options: {', '.join(options)}\n"
+                f"Training percentage: {train_split}%\n"
+                f"Testing + Validation percentage: {test_val_split}%\n"
+                f"Model chosen: {model}\n"
+            )
 
-        st.session_state.messages.append({"role": "user", "content": training_data})
-        with st.chat_message("assistant"):
-            try:
-                with st.spinner("⚙️ Training the model..."):
-                    response = asyncio.run(chat_with_agent(st.session_state.messages))
-                st.session_state.messages.append({"role": "assistant", "content": response})
-                st.success("Model training has started on CPU due to GPU limitations!")
+            st.session_state.messages.append({"role": "user", "content": training_data})
+            with st.chat_message("assistant"):
+                try:
+                    with st.spinner("⚙️ Training the model..."):
+                        response = asyncio.run(chat_with_agent(st.session_state.messages))
+                    st.session_state.messages.append({"role": "assistant", "content": response})
+                    st.success("Model training has started on CPU due to GPU limitations!")
 
-                st.markdown(ToolWrapper.model_training(training_data))
+                    st.markdown(ToolWrapper.model_training(training_data))
 
-                model_files = glob.glob("*.keras") + glob.glob("*.h5") + glob.glob("*.pb") + \
-                              glob.glob("*.pt") + glob.glob("*.pkl") + glob.glob("*.sav")
-                if model_files:
-                    model_path = model_files[0]
-                    st.success(f"Trained Model: {model_path}")
-                    with open(model_path, "rb") as f:
-                        st.download_button(
-                            label="⬇️ Download Trained Model",
-                            data=f,
-                            file_name=os.path.basename(model_path),
-                            mime="application/octet-stream"
-                        )
-                else:
-                    st.warning("No model file found after training.")
-            except Exception as e:
-                st.error(f"Error during model training: {str(e)}")
+                    model_files = glob.glob("*.keras") + glob.glob("*.h5") + glob.glob("*.pb") + \
+                                glob.glob("*.pt") + glob.glob("*.pkl") + glob.glob("*.sav")
+                    if model_files:
+                        model_path = model_files[0]
+                        st.success(f"Trained Model: {model_path}")
+                        with open(model_path, "rb") as f:
+                            st.download_button(
+                                label="⬇️ Download Trained Model",
+                                data=f,
+                                file_name=os.path.basename(model_path),
+                                mime="application/octet-stream"
+                            )
+                    else:
+                        st.warning("No model file found after training.")
+                except Exception as e:
+                    st.error(f"Error during model training: {str(e)}")
 
     st.divider()
 
-    # --- Upload an image section ---
-    st.subheader("🖼️ Test Your Model Now")
-    uploaded_image = st.file_uploader("Upload an image to predict", type=["png", "jpg", "jpeg"])
+    st.header("🧪 Click to Test Your Model")
 
-    if uploaded_image:
-        st.session_state.uploaded_image = uploaded_image
+    with st.expander("Open to upload and test your image", expanded=False):
 
-    if st.session_state.uploaded_image:
-        st.image(st.session_state.uploaded_image, caption="Uploaded Image", width=600)
+        # --- Upload an image section ---
+        st.subheader("🖼️ Test Your Model Now")
+        uploaded_image = st.file_uploader("Upload an image to predict", type=["png", "jpg", "jpeg"])
 
-        image_bytes = st.session_state.uploaded_image.read()
-        encoded_image = base64.b64encode(image_bytes).decode("utf-8")
+        if uploaded_image:
+            st.session_state.uploaded_image = uploaded_image
 
-        st.session_state.messages.append({"role": "user", "content": "Uploaded an image for prediction."})
+        if st.session_state.uploaded_image:
+            st.image(st.session_state.uploaded_image, caption="Uploaded Image", width=200, height = 250)
 
-        with st.chat_message("assistant"):
-            try:
-                with st.spinner("🔍 Predicting label..."):
-                    prediction = ToolWrapper.model_test(encoded_image)
-                st.session_state.messages.append({"role": "assistant", "content": prediction})
-                st.success(f"🔍 Predicted Label: **{prediction}**")
-            except Exception as e:
-                st.error(f"⚠️ Error during prediction: {str(e)}")
-    else:
-        st.write("No image uploaded yet.")
+            image_bytes = st.session_state.uploaded_image.read()
+            encoded_image = base64.b64encode(image_bytes).decode("utf-8")
+
+            st.session_state.messages.append({"role": "user", "content": "Uploaded an image for prediction."})
+
+            with st.chat_message("assistant"):
+                try:
+                    with st.spinner("🔍 Predicting label..."):
+                        prediction = ToolWrapper.model_test(encoded_image)
+                    st.session_state.messages.append({"role": "assistant", "content": prediction})
+                    st.success(f"🔍 Predicted Label: **{prediction}**")
+                except Exception as e:
+                    st.error(f"⚠️ Error during prediction: {str(e)}")
+        else:
+            st.write("No image uploaded yet.")
 
 # --- Sidebar (Right side) ---
 with st.sidebar:
     # --- Agent Chat Log ---
     st.subheader("💬 Agent Chat Log")
    
+    if st.button("Clear Chat", type="primary"):
+            st.session_state.messages = []
+            st.session_state.uploaded_image = None
+            st.session_state.last_prompt = None
+            st.session_state.last_response = None
+            st.session_state.last_powershell_command = None
 
+    if st.button("🔄 Regenerate Response"):
+        if st.session_state.messages and st.session_state.messages[-1]["role"] == "assistant":
+            st.session_state.messages.pop()
+
+        # st.session_state.messages.append({"role": "user", "content": st.session_state.last_prompt})
+
+        with st.chat_message("user"):
+            st.markdown(st.session_state.last_prompt)
+
+        with st.chat_message("assistant"):
+            try:
+                new_response = asyncio.run(chat_with_agent(st.session_state.messages))
+                # st.session_state.messages.append({"role": "assistant", "content": new_response})
+                st.session_state.last_response = new_response
+                st.markdown(new_response)
+
+            except Exception as e:
+                new_response = f"⚠️ Error regenerating response: {str(e)}"
+                # st.session_state.messages.append({"role": "assistant", "content": error_message})
+                st.session_state.last_response = None
+                st.error(new_response)
+        user = [msg for idx, msg in enumerate(reversed(st.session_state.messages)) if idx % 2 == 0]
+        assistant = [msg for idx, msg in enumerate(reversed(st.session_state.messages)) if idx % 2 == 1]
+
+        userAssistantPair = zip(user, assistant)
+
+        if st.session_state.messages:
+            for userMsg, assistantMsg in userAssistantPair:
+                # print(msg)
+                with st.chat_message(assistantMsg["role"]):
+                    st.markdown(assistantMsg["content"])
+                with st.chat_message(userMsg["role"]):
+                    st.markdown(userMsg["content"])
+
+        st.session_state.messages.append({"role": "user", "content": st.session_state.last_prompt})
+        st.session_state.messages.append({"role": "assistant", "content": new_response})
+    
     # --- Chat Input ---
     if prompt := st.chat_input("Your message"):
-        # st.session_state.messages.append({"role": "user", "content": prompt})
+        # Button to clear chat and reset the image
+            # st.session_state.messages.append({"role": "user", "content": prompt})
         with st.chat_message("user"):
             st.markdown(prompt)
         st.session_state.last_prompt = prompt
@@ -163,50 +212,3 @@ with st.sidebar:
 
         st.session_state.messages.append({"role": "user", "content": prompt})
         st.session_state.messages.append({"role": "assistant", "content": response})
-
-    # --- Regenerate Response Button ---
-    if st.session_state.get("last_prompt"):
-        if st.button("🔄 Regenerate Response"):
-            if st.session_state.messages and st.session_state.messages[-1]["role"] == "assistant":
-                st.session_state.messages.pop()
-
-            # st.session_state.messages.append({"role": "user", "content": st.session_state.last_prompt})
-
-            with st.chat_message("user"):
-                st.markdown(st.session_state.last_prompt)
-
-            with st.chat_message("assistant"):
-                try:
-                    new_response = asyncio.run(chat_with_agent(st.session_state.messages))
-                    # st.session_state.messages.append({"role": "assistant", "content": new_response})
-                    st.session_state.last_response = new_response
-                    st.markdown(new_response)
-
-                except Exception as e:
-                    error_message = f"⚠️ Error regenerating response: {str(e)}"
-                    # st.session_state.messages.append({"role": "assistant", "content": error_message})
-                    st.session_state.last_response = None
-                    st.error(error_message)
-        user = [msg for idx, msg in enumerate(reversed(st.session_state.messages)) if idx % 2 == 0]
-        assistant = [msg for idx, msg in enumerate(reversed(st.session_state.messages)) if idx % 2 == 1]
-
-        userAssistantPair = zip(user, assistant)
-
-        if st.session_state.messages:
-            for userMsg, assistantMsg in userAssistantPair:
-                # print(msg)
-                with st.chat_message(assistantMsg["role"]):
-                    st.markdown(assistantMsg["content"])
-                with st.chat_message(userMsg["role"]):
-                    st.markdown(userMsg["content"])
-
-        st.session_state.messages.append({"role": "user", "content": prompt})
-        st.session_state.messages.append({"role": "assistant", "content": response})
-
-    # Button to clear chat and reset the image
-    if st.button("Clear Chat", type="primary"):
-        st.session_state.messages = []
-        st.session_state.uploaded_image = None
-        st.session_state.last_prompt = None
-        st.session_state.last_response = None
-        st.session_state.last_powershell_command = None
