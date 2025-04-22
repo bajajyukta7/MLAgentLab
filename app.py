@@ -114,49 +114,63 @@ with col1:
     else:
         st.write("No image uploaded yet.")
 
-    # Button to clear chat and reset the image
-    if st.button("Clear Chat", type="primary"):
-        st.session_state.messages = []
-        st.session_state.uploaded_image = None
-        st.session_state.last_prompt = None
-        st.session_state.last_response = None
-        st.session_state.last_powershell_command = None
-
 # --- Sidebar (Right side) ---
 with st.sidebar:
     # --- Agent Chat Log ---
     st.subheader("💬 Agent Chat Log")
-    for msg in st.session_state.messages:
-        with st.chat_message(msg["role"]):
-            st.markdown(msg["content"])
+   
 
     # --- Chat Input ---
     if prompt := st.chat_input("Your message"):
-        st.session_state.messages.append({"role": "user", "content": prompt})
+        # st.session_state.messages.append({"role": "user", "content": prompt})
         with st.chat_message("user"):
             st.markdown(prompt)
         st.session_state.last_prompt = prompt
 
-        with st.chat_message("assistant"):
-            try:
-                response = asyncio.run(chat_with_agent(st.session_state.messages))
-                st.session_state.messages.append({"role": "assistant", "content": response})
-                st.session_state.last_response = response
+        # with st.chat_message("assistant"):
+        # for msg in reversed(st.session_state.messages):
+        #     with st.chat_message(msg["role"]):
+        #         st.markdown(msg["content"])
+
+        messages = [msg for msg in st.session_state.messages]
+        messages.append({"role": "user", "content": prompt})
+
+        try:
+            response = asyncio.run(chat_with_agent(messages))
+            # st.session_state.messages.append({"role": "assistant", "content": response})
+            st.session_state.last_response = response
+            with st.chat_message("assistant"):
                 st.markdown(response)
-            except Exception as e:
-                error_message = f"⚠️ Error generating response: {str(e)}"
-                st.session_state.messages.append({"role": "assistant", "content": error_message})
-                st.session_state.last_response = None
-                st.error(error_message)
+        except Exception as e:
+            response = f"⚠️ Error generating response: {str(e)}"
+            # st.session_state.messages.append({"role": "assistant", "content": response})
+            st.session_state.last_response = None
+            with st.chat_message("assistant"):
+                st.error(response)
+        
+        user = [msg for idx, msg in enumerate(reversed(st.session_state.messages)) if idx % 2 == 0]
+        assistant = [msg for idx, msg in enumerate(reversed(st.session_state.messages)) if idx % 2 == 1]
+
+        userAssistantPair = zip(user, assistant)
+
+        if st.session_state.messages:
+            for userMsg, assistantMsg in userAssistantPair:
+                # print(msg)
+                with st.chat_message(assistantMsg["role"]):
+                    st.markdown(assistantMsg["content"])
+                with st.chat_message(userMsg["role"]):
+                    st.markdown(userMsg["content"])
+
+        st.session_state.messages.append({"role": "user", "content": prompt})
+        st.session_state.messages.append({"role": "assistant", "content": response})
 
     # --- Regenerate Response Button ---
     if st.session_state.get("last_prompt"):
-        st.markdown("---")
         if st.button("🔄 Regenerate Response"):
             if st.session_state.messages and st.session_state.messages[-1]["role"] == "assistant":
                 st.session_state.messages.pop()
 
-            st.session_state.messages.append({"role": "user", "content": st.session_state.last_prompt})
+            # st.session_state.messages.append({"role": "user", "content": st.session_state.last_prompt})
 
             with st.chat_message("user"):
                 st.markdown(st.session_state.last_prompt)
@@ -164,12 +178,35 @@ with st.sidebar:
             with st.chat_message("assistant"):
                 try:
                     new_response = asyncio.run(chat_with_agent(st.session_state.messages))
-                    st.session_state.messages.append({"role": "assistant", "content": new_response})
+                    # st.session_state.messages.append({"role": "assistant", "content": new_response})
                     st.session_state.last_response = new_response
                     st.markdown(new_response)
 
                 except Exception as e:
                     error_message = f"⚠️ Error regenerating response: {str(e)}"
-                    st.session_state.messages.append({"role": "assistant", "content": error_message})
+                    # st.session_state.messages.append({"role": "assistant", "content": error_message})
                     st.session_state.last_response = None
                     st.error(error_message)
+        user = [msg for idx, msg in enumerate(reversed(st.session_state.messages)) if idx % 2 == 0]
+        assistant = [msg for idx, msg in enumerate(reversed(st.session_state.messages)) if idx % 2 == 1]
+
+        userAssistantPair = zip(user, assistant)
+
+        if st.session_state.messages:
+            for userMsg, assistantMsg in userAssistantPair:
+                # print(msg)
+                with st.chat_message(assistantMsg["role"]):
+                    st.markdown(assistantMsg["content"])
+                with st.chat_message(userMsg["role"]):
+                    st.markdown(userMsg["content"])
+
+        st.session_state.messages.append({"role": "user", "content": prompt})
+        st.session_state.messages.append({"role": "assistant", "content": response})
+
+    # Button to clear chat and reset the image
+    if st.button("Clear Chat", type="primary"):
+        st.session_state.messages = []
+        st.session_state.uploaded_image = None
+        st.session_state.last_prompt = None
+        st.session_state.last_response = None
+        st.session_state.last_powershell_command = None
