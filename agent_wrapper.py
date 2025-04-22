@@ -1,13 +1,9 @@
-import observability_agent
 from training_agent import MLEAgent
-import config_validation_agent
+from inference_agent import InferenceAgent
 import selector_agent
-import contextual_support_agent
 import os
 from autogen_ext.models.openai import AzureOpenAIChatCompletionClient
 from tool_wrapper import ToolWrapper
-from autogen_core.tools import FunctionTool, Tool
-from autogen_core.models import AssistantMessage, FunctionExecutionResult, FunctionExecutionResultMessage, UserMessage
 
 # Utility class for agents
 class AgentWrapper:
@@ -40,4 +36,6 @@ class AgentWrapper:
         return [selector_agent.get_agent(model_client=AgentWrapper.get_model_client(),
                                               tools=[]),
                 MLEAgent.get_agent(model_client=AgentWrapper.get_model_client(),
-                                                tools=[ToolWrapper.get_model_training_tool])]
+                                                tools=[ToolWrapper.get_model_training_tool]),
+                InferenceAgent.get_agent(model_client=AgentWrapper.get_model_client(),
+                                                tools=[ToolWrapper.get_model_test_tool])]

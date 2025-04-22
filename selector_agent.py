@@ -1,16 +1,6 @@
 # import user_proxy_agent
-from autogen_agentchat.agents import AssistantAgent, UserProxyAgent
-from autogen_agentchat.messages import HandoffMessage
+from autogen_agentchat.agents import AssistantAgent
 import streamlit as st
-from autogen_core import (
-    FunctionCall,
-    MessageContext,
-    RoutedAgent,
-    SingleThreadedAgentRuntime,
-    TopicId,
-    TypeSubscription,
-    message_handler,
-)
 
 @staticmethod
 def getInput():
@@ -37,7 +27,7 @@ def get_agent(model_client, tools=[]):
         - Strictly don't add any new context to message, just keep forwarding the messages.
         - Never return empty response to any agent or customer.
         """,
-        handoffs=["MLEAgent", "user"],
+        handoffs=["MLEAgent", "InferenceAgent"],
         reflect_on_tool_use = True
     )
     

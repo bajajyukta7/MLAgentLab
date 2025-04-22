@@ -14,7 +14,13 @@ from pathlib import Path
 from autogen_core import CancellationToken
 from autogen_core.code_executor import CodeBlock
 from autogen_ext.code_executors.local import LocalCommandLineCodeExecutor
-
+from typing import Union
+from PIL import Image
+import numpy as np
+import tensorflow as tf
+import traceback
+import base64
+import io
 
 
 
@@ -67,7 +73,7 @@ class ToolWrapper:
         # print("Training model with code:\n", model_training_code)
         with open("train_model_code.py", "w") as f:
             f.write(model_training_code)
-        result = subprocess.run([sys.executable, "generated_model.py"], capture_output=True, text=True)
+        result = subprocess.run([sys.executable, "train_model_code.py"], capture_output=True, text=True)
         print("STDOUT:\n", result.stdout)
         print("STDERR:\n", result.stderr)
         # accuracy_matches = re.findall(r'accuracy:\s+([0-9.]+)', result.stdout)
@@ -78,21 +84,86 @@ class ToolWrapper:
     def get_model_training_tool():
         model_training_tool = FunctionTool(
             ToolWrapper.model_training,
-            description="Fetch the relevant documents for a user query from RAG database.",
+            description="Train the model.",
         )
         return model_training_tool
     
     @staticmethod
-    def model_test(model_training_code:str) -> str :
-        # print("Training model with code:\n", model_training_code)
-        with open("test_model_code.py", "w") as f:
-            f.write(model_training_code)
-        result = subprocess.run([sys.executable, "test_model_code.py"], capture_output=True, text=True)
-        print("STDOUT:\n", result.stdout)
-        print("STDERR:\n", result.stderr)
-        accuracy_matches = re.findall(r'accuracy:\s+([0-9.]+)', result.stdout)
-        training_accuracies = [float(acc) for acc in accuracy_matches]
-        return training_accuracies
+    def model_test(image_input) -> str:
+        try:
+            print("Step 0: Entered model_test")
+
+            img_height, img_width = 150, 150
+
+            # 🔄 Convert base64 → PIL.Image if needed
+            if isinstance(image_input, str):
+                if image_input.strip().startswith("/9j"):  # likely base64 JPEG
+                    print("Step 0.5: Decoding base64 string to image")
+                    image_bytes = base64.b64decode(image_input)
+                    image = Image.open(io.BytesIO(image_bytes))
+                else:
+                    print(f"Step 0.5: Opening image from file path: {image_input}")
+                    image = Image.open(image_input)
+            elif isinstance(image_input, Image.Image):
+                image = image_input
+            else:
+                raise ValueError("Unsupported input type for image")
+
+            print("Step 1: Resizing image")
+            image = image.resize((img_width, img_height))
+            image = np.array(image).astype("float32")
+
+            print(f"Step 2: Image shape after resize: {image.shape}")
+            image = image / 255.0
+            image = np.expand_dims(image, axis=0)
+            print(f"Step 3: Image shape after expand_dims: {image.shape}")
+
+            model_path = r"Q:\MLAgentLab\cat_dog_classifier.h5"
+            print(f"Step 4: Loading model from {model_path}")
+            model = tf.keras.models.load_model(model_path)
+
+            print("Step 5: Model loaded, predicting...")
+            prediction = model.predict(image)
+            print(f"Step 6: Prediction result: {prediction}")
+
+            label = "cat" if prediction[0][0] < 0.5 else "dog"
+            print(f"Step 7: Classified as: {label}")
+            return f"Classified as: {label}"
+
+        except Exception as e:
+            print("Exception occurred!")
+            traceback.print_exc()
+            return f"Error during classification: {str(e)}"
+        
+    @staticmethod
+    def get_model_test_tool():
+        model_test_tool = FunctionTool(
+            ToolWrapper.model_test,
+            description="Test the model.",
+        )
+        return model_test_tool
+        
+    # @staticmethod
+    # def model_test(model_training_code:str) -> str :
+    #     # Load model once (to avoid reloading every time the agent calls this)
+    #     model = tf.keras.models.load_model('best_model.h5')
+    #     img_height, img_width = 150, 150
+
+    #     def classify_image_agent(image: Union[Image.Image, np.ndarray]) -> str:
+    #         try:
+    #             if isinstance(image, Image.Image):
+    #                 image = image.resize((img_width, img_height))
+    #                 image = np.array(image)
+
+    #             image = image / 255.0
+    #             image = np.expand_dims(image, axis=0)
+
+    #             prediction = model.predict(image)
+    #             label = "cat" if prediction[0][0] < 0.5 else "dog"
+    #             return f"Classified as: {label}"
+    #         except Exception as e:
+    #             return f"Error during classification: {str(e)}"
+
     
     @staticmethod
     def get_retrieval_tool():

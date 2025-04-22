@@ -1,102 +1,94 @@
 import os
+import git
 import subprocess
-import zipfile
-import requests
-from PIL import Image
-from sklearn.model_selection import train_test_split
+import pandas as pd
 import numpy as np
-import tensorflow as tf
+import shutil
+from sklearn.model_selection import train_test_split
 from tensorflow.keras.preprocessing.image import ImageDataGenerator
 from tensorflow.keras.models import Sequential
 from tensorflow.keras.layers import Conv2D, MaxPooling2D, Flatten, Dense, Dropout
-from tensorflow.keras.preprocessing import image
-from tensorflow.keras.callbacks import EarlyStopping, ModelCheckpoint
+import tensorflow as tf
+import streamlit as st
 
-# Clone the repository and extract the dataset
+# Clone the GitHub repository
 repo_url = 'https://github.com/laxmimerit/dog-cat-full-dataset'
-local_path = 'dog-cat-full-dataset'
-if not os.path.exists(local_path):
-    subprocess.run(['git', 'clone', repo_url, local_path])
+repo_dir = 'dog-cat-full-dataset'
 
-# Define paths
-data_dir = os.path.join(local_path, 'data')
+if not os.path.exists(repo_dir):
+    git.Repo.clone_from(repo_url, repo_dir)
 
-# Prepare image data generators
-batch_size = 32
-img_height = 150
-img_width = 150
+# Set dataset paths
+train_dir = os.path.join(repo_dir, 'data/train')
+test_dir = os.path.join(repo_dir, 'data/test')
+sample_dir = 'sample_data'
 
-train_datagen = ImageDataGenerator(rescale=1.0/255, validation_split=0.3)
+# Create a sample directory if it doesn't exist
+if not os.path.exists(sample_dir):
+    os.makedirs(sample_dir)
 
-train_generator = train_datagen.flow_from_directory(
-    data_dir,
-    target_size=(img_height, img_width),
-    batch_size=batch_size,
-    class_mode='binary',
-    subset='training',
-    shuffle=True
-)
+# Function to sample 1% of the data
+def sample_data(src_dir, dest_dir, sample_fraction=0.01):
+    if not os.path.exists(dest_dir):
+        os.makedirs(dest_dir)
+    for category in ['cats', 'dogs']:
+        src_category_dir = os.path.join(src_dir, category)
+        dest_category_dir = os.path.join(dest_dir, category)
+        if not os.path.exists(dest_category_dir):
+            os.makedirs(dest_category_dir)
+        files = os.listdir(src_category_dir)
+        sample_size = int(len(files) * sample_fraction)
+        sample_files = np.random.choice(files, sample_size, replace=False)
+        for file in sample_files:
+            shutil.copy(os.path.join(src_category_dir, file), os.path.join(dest_category_dir, file))
 
-validation_generator = train_datagen.flow_from_directory(
-    data_dir,
-    target_size=(img_height, img_width),
-    batch_size=batch_size,
-    class_mode='binary',
-    subset='validation',
-    shuffle=True
-)
+# Sample 1% of the train and test data
+sample_train_dir = os.path.join(sample_dir, 'train')
+sample_test_dir = os.path.join(sample_dir, 'test')
+sample_data(train_dir, sample_train_dir)
+sample_data(test_dir, sample_test_dir)
+
+# Define the ImageDataGenerators
+train_datagen = ImageDataGenerator(rescale=1./255, validation_split=0.3)  # 70% training, 30% validation
+test_datagen = ImageDataGenerator(rescale=1./255)
+
+# Create the training, validation, and testing data generators
+train_generator = train_datagen.flow_from_directory(sample_train_dir, target_size=(150, 150), batch_size=20, class_mode='binary', subset='training')
+validation_generator = train_datagen.flow_from_directory(sample_train_dir, target_size=(150, 150), batch_size=20, class_mode='binary', subset='validation')
+test_generator = test_datagen.flow_from_directory(sample_test_dir, target_size=(150, 150), batch_size=20, class_mode='binary')
 
 # Build the CNN model
 model = Sequential([
-    Conv2D(32, (3, 3), activation='relu', input_shape=(img_height, img_width, 3)),
-    MaxPooling2D(pool_size=(2, 2)),
+    Conv2D(32, (3, 3), activation='relu', input_shape=(150, 150, 3)),
+    MaxPooling2D((2, 2)),
     Conv2D(64, (3, 3), activation='relu'),
-    MaxPooling2D(pool_size=(2, 2)),
+    MaxPooling2D((2, 2)),
     Conv2D(128, (3, 3), activation='relu'),
-    MaxPooling2D(pool_size=(2, 2)),
+    MaxPooling2D((2, 2)),
+    Conv2D(128, (3, 3), activation='relu'),
+    MaxPooling2D((2, 2)),
     Flatten(),
     Dense(512, activation='relu'),
     Dropout(0.5),
     Dense(1, activation='sigmoid')
 ])
 
-model.compile(optimizer='adam',
-              loss='binary_crossentropy',
-              metrics=['accuracy'])
+# Compile the model
+model.compile(loss='binary_crossentropy', optimizer='adam', metrics=['accuracy'])
 
-# Define callbacks
-callbacks = [
-    EarlyStopping(monitor='val_loss', patience=5, verbose=1, restore_best_weights=True),
-    ModelCheckpoint('best_model.h5', monitor='val_loss', save_best_only=True, verbose=1)
-]
+# Print the model summary
+print(model.summary())
 
 # Train the model
-epochs = 20
-history = model.fit(
-    train_generator,
-    epochs=epochs,
-    validation_data=validation_generator,
-    callbacks=callbacks
-)
+history = model.fit(train_generator, steps_per_epoch=len(train_generator), epochs=10, validation_data=validation_generator, validation_steps=len(validation_generator))
 
-# Evaluate the model
-evaluation = model.evaluate(validation_generator)
-print(f'Validation Accuracy: {evaluation[1]*100:.2f}%')
+# Print training history
+print("Training history:", history.history)
 
-# # Load the best model for testing
-# model = tf.keras.models.load_model('best_model.h5')
+# Save the model
+model_name = 'cat_dog_classifier.h5'
+model.save(model_name)
 
-# # If test data is separate, similar loading and evaluation process as validation can be done
-# test_datagen = ImageDataGenerator(rescale=1.0/255)
-# test_generator = test_datagen.flow_from_directory(
-#     data_dir,
-#     target_size=(img_height, img_width),
-#     batch_size=batch_size,
-#     class_mode='binary',
-# )
-
-# # Evaluate the model on test data
-# evaluation = model.evaluate(test_generator)
-# print(f'Test Accuracy: {evaluation[1]*100:.2f}%')
-
-# # Assuming the data is split perfectly into required sets for simplicity
+# Streamlit download button
+with open(model_name, "rb") as f:
+    st.download_button("Download Trained Model", f, file_name=model_name)

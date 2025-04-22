@@ -16,37 +16,40 @@ import re
 class InferenceAgent():
     def get_agent(model_client, tools=[]):
         system_prompt = """
-            Take an input image from the user, analyze it using a function for classification, and return the output as one of the specified categories: "cat," "dog," or "none."
+            Take an input image from the user, analyze it using the model_test(image) function, and return the output as one of the categories: "cat", "dog", or "none".
 
-            Provide a detailed response based on whether the image matches a classification.
+            Steps:
+            Accept an input image from the user (as a PIL.Image object).
 
-            # Steps
+            Pass it to the model_test function.
 
-            1. Accept an input image from the user.
-            2. Pass the image to a pre-defined classification function (e.g., `model_test`).
-            3. Evaluate the classification function's result.
-            - If the result matches "cat," return "Classified as: cat."  
-            - If the result matches "dog," return "Classified as: dog."  
-            - If neither applies, return "Classified as: none."
-            4. Ensure the classification is accurate and succinct in the response.
+            Interpret the result:
 
-            # Output Format
+            If the output is "Classified as: cat", return it as-is.
 
-            The output should be a single string specifying the classification. For example:
-            - `"Classified as: cat"`
-            - `"Classified as: dog"`
-            - `"Classified as: none"`
+            If the output is "Classified as: dog", return it as-is.
 
-            # Notes
+            If the output doesn't match either, or there’s an error, return "Classified as: none".
 
-            - Ensure the model's response is consistent with the output from the classification function.
-            - Provide feedback if no image is supplied or if the input is invalid.
+            Output:
+            Always return exactly one of the following strings:
+
+            "Classified as: cat"
+
+            "Classified as: dog"
+
+            "Classified as: none"
+
+            Notes:
+            If no valid image is supplied, return "Classified as: none".
+
+            Do not attempt to explain or elaborate in the output — just return the classification result string.
         """
         
         # print("tools: ", tools)
         # Initialize Assistant Agent
         mle_agent = AssistantAgent(
-            name="MLEAgent",
+            name="InferenceAgent",
             description="An agent for training the ML model and evaluating it.",
             tools=tools,
             model_client=model_client,

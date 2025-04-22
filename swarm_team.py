@@ -1,67 +1,13 @@
 from agent_wrapper import AgentWrapper
 from autogen_agentchat.teams import SelectorGroupChat
-from autogen_agentchat.teams import MagenticOneGroupChat
 from autogen_agentchat.conditions import MaxMessageTermination, TextMentionTermination
 from agent_wrapper import AgentWrapper
 
-import os
 from autogen_agentchat.teams import Swarm
 from autogen_agentchat.conditions import HandoffTermination, TextMentionTermination
 from typing import Sequence
-from autogen_agentchat.messages import AgentEvent, ChatMessage
-import re
 from autogen_agentchat.messages import TextMessage
 from autogen_agentchat.messages import ToolCallExecutionEvent
-
-
-def custom_speaker_selection(last_speaker, groupchat, config_validation_agent,observability_agent,workloads_agent):
-    # print("mesvbvsage:", messages)
-    last_message = ""
-    # last_message = messages[-1].content.lower()
-    # last_user_message = re.findall(r"User:\s*(.+)", last_message, re.DOTALL)
-
-    # # Return the last user message if found, otherwise return an empty string
-    # # last_message = last_user_message[-1].strip() if messages else ""
-    # print("last message:", last_user_message)
-    # Define keywords associated with each agent's expertise
-    config_validation_keywords = ['quality check', 'config validation']
-    observability_keywords = ['observability', 'monitoring', 'health']
-    workload_keywords = ['design', 'workload definition', "virtual instance", "vi"]
-
-    # Determine the appropriate agent based on the presence of keywords
-    if any(keyword in last_message for keyword in workload_keywords):
-        return "WorkloadsAssistant"
-    elif any(keyword in last_message for keyword in config_validation_keywords):
-        return "ConfigValidationAssistant"
-    elif any(keyword in last_message for keyword in observability_keywords):
-        return "ObservabilityAssistant"
-    else:
-        return "WorkloadsAssistant"
-
-def selector_func_with_user_proxy(messages: Sequence[AgentEvent | ChatMessage]) -> str | None:
-   
-    print("mesvbvsage:", messages)
-    last_message = ""
-    # last_message = messages[-1].content.lower()
-    # last_user_message = re.findall(r"User:\s*(.+)", last_message, re.DOTALL)
-
-    # # Return the last user message if found, otherwise return an empty string
-    # # last_message = last_user_message[-1].strip() if messages else ""
-    # print("last message:", last_user_message)
-    # Define keywords associated with each agent's expertise
-    config_validation_keywords = ['quality check', 'config validation']
-    observability_keywords = ['observability', 'monitoring', 'health']
-    workload_keywords = ['design', 'workload definition', "virtual instance", "vi"]
-
-    # Determine the appropriate agent based on the presence of keywords
-    if any(keyword in last_message for keyword in workload_keywords):
-        return "WorkloadsAssistant"
-    elif any(keyword in last_message for keyword in config_validation_keywords):
-        return "ConfigValidationAssistant"
-    elif any(keyword in last_message for keyword in observability_keywords):
-        return "ObservabilityAssistant"
-    else:
-        return "WorkloadsAssistant"
 
 def initialize():
 
@@ -82,7 +28,6 @@ def initialize():
     text_mention_termination = TextMentionTermination("TERMINATE")
     max_messages_termination = MaxMessageTermination(max_messages=2, include_agent_event=True)
     termination = text_mention_termination | max_messages_termination
-    termination1 = HandoffTermination(target="user") | TextMentionTermination("TERMINATE") | (MaxMessageTermination(max_messages=6))
 
     selector_prompt = """
     Select an agent to perform task.
@@ -97,23 +42,6 @@ def initialize():
     Only select one agent and stop the conversation strictly and wait for user input.
     """
    
-    selector_prompt_1 = """
-    Always call the selector_func.
-    Based on the last user input after patsing the string user:, select the most appropriate agent to respond next.
-
-    Available agents:
-
-    WorkloadsAssistant:
-    - Handles general inquiries and topics related to the design of Workloads, Virtual Instances, and Workload Definitions.
-
-    ConfigValidationAssistant:
-    - Addresses questions related to quality checks or configuration validation.
-
-    ObservabilityAgent:
-    - Responds to queries concerning observability, monitoring, and workload health.
-
-    Output only the selected agent's name.
-    """
     selector_prompt_3= """
     Given a conversation history string, extract the last message and determine the next speaker.
 
@@ -124,57 +52,13 @@ def initialize():
     message: [TextMessage(source='user', models_usage=None, metadata={}, content='User: hi\nAssistant: WorkloadsAssistant:How can I assist you in designing your Azure workload today?\nUser: design a workload)]
     reponse: speaker selection based on "design a workload"
     """
-    selector_prompt_with_react = """
-    You run in a loop of Thought, Action, PAUSE, Observation.
-    At the end of the loop you output an Answer
-    Use Thought to describe your thoughts about the question you have been asked.
-    Use Action to run one of the agents {roles} available to you - then return PAUSE.
-    Observation will be the result of running those agents.
-    Do not select random agents strictly.
-    Think before responding
 
-    Your available agents are:
+    termination = HandoffTermination(target="user") | TextMentionTermination("TERMINATE") | (MaxMessageTermination(max_messages=6))
 
-    WorkloadsAssistant:
-    This handle all generic questions and is the main agent.
-    It will also handle question related to Virtual Instand and Workload Definition.
-    
-    ConfigValidationAssistant:
-    Answer question related quality checks.
-
-    ObservabilityAgent:
-    Answer question related to observability and monitoring.
-
-    Example session:
-
-    Question: Design a workload?
-    Thought: I should look for agent for designing and creating a workloads
-    Action: WorkloadsAssistant
-    PAUSE
-
-    You will be called again with this:
-
-    Observation: Return the response of workload assistant.
-
-    You then output:
-
-    Answer: WorkloadAssistant: "response of workload assistant"
-    """
-
-    selector_group_chat = SelectorGroupChat(
-        agents,
-        model_client=AgentWrapper.get_model_client(),
-        selector_func=selector_func_with_user_proxy,
-        termination_condition=termination1,
-        selector_prompt=selector_prompt_3,
-        max_selector_attempts = 1,
-        allow_repeated_speaker=False,  # Allow an agent to speak multiple turns in a row.
-    )
-    # termination1 = HandoffTermination(target="user") | TextMentionTermination("TERMINATE") | MaxMessageTermination(max_messages=1)
     swarm_teams_manager = Swarm(
         participants = agents,
         # model_client=AgentWrapper.get_model_client(),
-        termination_condition=termination1,
+        termination_condition=termination,
         max_turns=10
         # selector_prompt=selector_prompt_1,
         # allow_repeated_speaker=False,  # Allow an agent to speak multiple turns in a row.
