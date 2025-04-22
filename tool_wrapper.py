@@ -94,12 +94,12 @@ class ToolWrapper:
         # print("Training model with code:\n", model_training_code)
         with open("generated_model.py", "w") as f:
             f.write(model_training_code)
-        result = subprocess.run([sys.executable, "cat_dog_demo.py"], capture_output=True, text=True)
+        result = subprocess.run([sys.executable, "generated_model.py"], capture_output=True, text=True)
         print("STDOUT:\n", result.stdout)
         print("STDERR:\n", result.stderr)
-        accuracy_matches = re.findall(r'accuracy:\s+([0-9.]+)', result.stdout)
-        training_accuracies = [float(acc) for acc in accuracy_matches]
-        return training_accuracies
+        # accuracy_matches = re.findall(r'accuracy:\s+([0-9.]+)', result.stdout)
+        # training_accuracies = [float(acc) for acc in accuracy_matches]
+        return f"```bash\n{result.stdout}\n```"
        
     @staticmethod
     def get_model_training_tool():
