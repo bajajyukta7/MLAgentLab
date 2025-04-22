@@ -21,33 +21,6 @@ from autogen_ext.code_executors.local import LocalCommandLineCodeExecutor
 class ToolWrapper:
     """Manages multiple tools and provides dynamic tool selection."""
     
-
-    @staticmethod
-    def generate_mermaid_html(response: str):
-        """
-        Extracts Mermaid code blocks from the response and renders them using the streamlit-mermaid component.
-
-        Parameters:
-        - response (str): The input text containing Mermaid diagrams enclosed in triple backticks with 'mermaid'.
-
-        Returns:
-        - None
-        """
-        # Regular expression to find Mermaid code blocks
-        print("fgb")
-        pattern = r"```mermaid(.*?)```"
-        mermaid_blocks = re.findall(pattern, response, re.DOTALL)
-
-        if mermaid_blocks:
-            for mermaid_code in mermaid_blocks:
-                mermaid_code = mermaid_code.strip()
-                if mermaid_code:
-                    stmd.st_mermaid(mermaid_code)
-                    st.markdown("af\n")
-        else:
-            st.warning("No Mermaid diagrams found in the provided response.")
-        return mermaid_code
-
     @staticmethod
     def rag_retriever_tool(user_input:str) -> str :
         
@@ -92,7 +65,7 @@ class ToolWrapper:
     @staticmethod
     def model_training(model_training_code:str) -> str :
         # print("Training model with code:\n", model_training_code)
-        with open("generated_model.py", "w") as f:
+        with open("train_model_code.py", "w") as f:
             f.write(model_training_code)
         result = subprocess.run([sys.executable, "cat_dog_demo.py"], capture_output=True, text=True)
         print("STDOUT:\n", result.stdout)
@@ -108,6 +81,18 @@ class ToolWrapper:
             description="Fetch the relevant documents for a user query from RAG database.",
         )
         return model_training_tool
+    
+    @staticmethod
+    def model_test(model_training_code:str) -> str :
+        # print("Training model with code:\n", model_training_code)
+        with open("test_model_code.py", "w") as f:
+            f.write(model_training_code)
+        result = subprocess.run([sys.executable, "test_model_code.py"], capture_output=True, text=True)
+        print("STDOUT:\n", result.stdout)
+        print("STDERR:\n", result.stderr)
+        accuracy_matches = re.findall(r'accuracy:\s+([0-9.]+)', result.stdout)
+        training_accuracies = [float(acc) for acc in accuracy_matches]
+        return training_accuracies
     
     @staticmethod
     def get_retrieval_tool():

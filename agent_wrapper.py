@@ -1,5 +1,5 @@
 import observability_agent
-from mle_agent import MLEAgent
+from training_agent import MLEAgent
 import config_validation_agent
 import selector_agent
 import contextual_support_agent

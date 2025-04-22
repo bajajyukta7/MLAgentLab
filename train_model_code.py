@@ -83,20 +83,20 @@ history = model.fit(
 evaluation = model.evaluate(validation_generator)
 print(f'Validation Accuracy: {evaluation[1]*100:.2f}%')
 
-# Load the best model for testing
-model = tf.keras.models.load_model('best_model.h5')
+# # Load the best model for testing
+# model = tf.keras.models.load_model('best_model.h5')
 
-# If test data is separate, similar loading and evaluation process as validation can be done
-test_datagen = ImageDataGenerator(rescale=1.0/255)
-test_generator = test_datagen.flow_from_directory(
-    data_dir,
-    target_size=(img_height, img_width),
-    batch_size=batch_size,
-    class_mode='binary',
-)
+# # If test data is separate, similar loading and evaluation process as validation can be done
+# test_datagen = ImageDataGenerator(rescale=1.0/255)
+# test_generator = test_datagen.flow_from_directory(
+#     data_dir,
+#     target_size=(img_height, img_width),
+#     batch_size=batch_size,
+#     class_mode='binary',
+# )
 
-# Evaluate the model on test data
-evaluation = model.evaluate(test_generator)
-print(f'Test Accuracy: {evaluation[1]*100:.2f}%')
+# # Evaluate the model on test data
+# evaluation = model.evaluate(test_generator)
+# print(f'Test Accuracy: {evaluation[1]*100:.2f}%')
 
-# Assuming the data is split perfectly into required sets for simplicity
+# # Assuming the data is split perfectly into required sets for simplicity
