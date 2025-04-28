@@ -142,7 +142,7 @@ class ToolWrapper:
             description="Test the model.",
         )
         return model_test_tool
-        
+    
     # @staticmethod
     # def model_test(model_training_code:str) -> str :
     #     # Load model once (to avoid reloading every time the agent calls this)
@@ -174,55 +174,44 @@ class ToolWrapper:
         return retrieval_tool
     
     @staticmethod
-    async def execute_arm_actions(script_content: str):
-        """
-        Executes a PowerShell script to perform Azure Resource Manager (ARM) actions.
+    def resize_images(image_input) -> str:
+        try:
+            print("Step 0: Entered model_test")
 
-        Parameters:
-        - script_content (str): The PowerShell script content to execute.
+            img_height, img_width = 150, 150
 
-        Returns:
-        - str: The output from the PowerShell script execution.
-        """
-        
-        # print("Execute powershell command")
-        # # Open a web link
-        # os.system("start https://ms.portal.azure.com/#browse/Microsoft.Workloads%2FsapVirtualInstances") 
+            # 🔄 Convert base64 → PIL.Image if needed
+            if isinstance(image_input, str):
+                if image_input.strip().startswith("/9j"):  # likely base64 JPEG
+                    print("Step 0.5: Decoding base64 string to image")
+                    image_bytes = base64.b64decode(image_input)
+                    image = Image.open(io.BytesIO(image_bytes))
+                else:
+                    print(f"Step 0.5: Opening image from file path: {image_input}")
+                    image = Image.open(image_input)
+            elif isinstance(image_input, Image.Image):
+                image = image_input
+            else:
+                raise ValueError("Unsupported input type for image")
 
-        # def open_azure(request):
-        url = "https://ms.portal.azure.com/#browse/Microsoft.Workloads%2FsapVirtualInstances"
-        webbrowser.open(url)  # This opens the URL in the default browser.
+            print("Step 1: Resizing image")
+            image = image.resize((img_width, img_height))
+            image = np.array(image).astype("float32")
 
-        # work_dir = Path("coding")
-        # work_dir.mkdir(exist_ok=True)
+            print(f"Step 2: Image shape after resize: {image.shape}")
+            image = image / 255.0
+            image = np.expand_dims(image, axis=0)
+            print(f"Step 3: Image shape after expand_dims: {image.shape}")
 
-        # venv_dir = work_dir / ".ven2"
-        # venv_builder = venv.EnvBuilder(with_pip=True)
-        # venv_builder.create(venv_dir)
-        # venv_context = venv_builder.ensure_directories(venv_dir)
-
-        # local_executor = LocalCommandLineCodeExecutor(work_dir=work_dir, virtual_env_context=venv_context)
-        # await local_executor.execute_code_blocks(
-        #   code_blocks=[
-        #      CodeBlock(language="python", code="pip install xyz"),
-        # ])
-        # cancellation_token=CancellationToken(),
-        # try:
-        #     # Execute the PowerShell script
-        #     result = subprocess.run(
-        #         ["powershell", "-Command", script_content],
-        #         capture_output=True,
-        #         text=True,
-        #         check=True
-        #     )
-        #     return result.stdout
-        # except subprocess.CalledProcessError as e:
-        #     return f"An error occurred while executing the PowerShell script: {e.stderr}"
+        except Exception as e:
+            print("Exception occurred!")
+            traceback.print_exc()
+            return f"Error during classification: {str(e)}"
 
     @staticmethod
-    def get_execution_tool():
-        execution_tool = FunctionTool(
-            ToolWrapper.execute_arm_actions,
-            description="Execute powershell commands or register VI",
+    def get_resize_image_tool():
+        retrieval_tool = FunctionTool(
+            ToolWrapper.resize_images,
+            description="Process the data for training and resize if available",
         )
-        return execution_tool
+        return retrieval_tool
