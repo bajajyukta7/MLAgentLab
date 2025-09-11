@@ -48,7 +48,14 @@ with col1:
         train_split = st.slider("Training data %", 10, 90, 70, 5)
         test_val_split = 100 - train_split
         st.text(f"Testing + Validation: {test_val_split}%")
-        model = st.selectbox("Choose a model", ["CNN", "RNN", "SVM", "Random Forest", "Auto Model"], index=4)
+        model = st.selectbox("Choose a model", [
+            "CNN", "RNN", "LSTM", "GRU", "Transformer", "BERT", "GPT",
+            "SVM", "Random Forest", "Decision Tree", "Gradient Boosting", "XGBoost",
+            "AdaBoost", "Naive Bayes", "K-Means", "KNN", "Linear Regression",
+            "Logistic Regression", "Ridge Regression", "Lasso Regression",
+            "ElasticNet", "Neural Network", "AutoEncoder", "GAN", "ResNet",
+            "Auto Model"
+        ], index=25)  # Auto Model is now at index 25
 
         if st.button("Run"):
             training_data = (
@@ -60,15 +67,85 @@ with col1:
                 f"Model chosen: {model}\n"
             )
 
+            # If Auto Model is selected, call agent to decide the best model
+            if model == "Auto Model":
+                st.info("🤖 Auto Model selected - asking agent to recommend the best model...")
+                auto_model_prompt = (
+                    f"You are a machine learning expert. Based on this task: '{task_desc}' and data options: {', '.join(options)}, "
+                    f"you must choose ONE of these machine learning models: "
+                    f"CNN, RNN, LSTM, GRU, Transformer, BERT, GPT, SVM, Random Forest, Decision Tree, "
+                    f"Gradient Boosting, XGBoost, AdaBoost, Naive Bayes, K-Means, KNN, Linear Regression, "
+                    f"Logistic Regression, Ridge Regression, Lasso Regression, ElasticNet, Neural Network, "
+                    f"AutoEncoder, GAN, ResNet. "
+                    f"Do NOT suggest any other models or agent names. "
+                    f"RESPOND WITH ONLY THE MODEL NAME from the above list. "
+                    f"Guidelines: For image tasks use CNN/ResNet/GAN. For text use RNN/LSTM/GRU/Transformer/BERT/GPT. "
+                    f"For tabular data use Random Forest/XGBoost/SVM. For clustering use K-Means. "
+                    f"For regression use Linear/Ridge/Lasso Regression."
+                )
+                
+                auto_model_messages = [{"role": "user", "content": auto_model_prompt}]
+                
+                with st.spinner("🧠 Agent is analyzing and selecting the best model..."):
+                    auto_model_response = asyncio.run(chat_with_agent(auto_model_messages))
+                
+                # Extract just the model name and validate it's one of our allowed models
+                allowed_models = [
+                    "CNN", "RNN", "LSTM", "GRU", "Transformer", "BERT", "GPT",
+                    "SVM", "Random Forest", "Decision Tree", "Gradient Boosting", "XGBoost",
+                    "AdaBoost", "Naive Bayes", "K-Means", "KNN", "Linear Regression",
+                    "Logistic Regression", "Ridge Regression", "Lasso Regression",
+                    "ElasticNet", "Neural Network", "AutoEncoder", "GAN", "ResNet"
+                ]
+                model_name = auto_model_response.split('\n')[0].split('.')[0].split(':')[0].strip()
+                # Remove any formatting like **CNN** or 🔹CNN
+                import re
+                model_name = re.sub(r'[*🔹\-#]', '', model_name).strip()
+                
+                # Validate the model name is in our allowed list
+                if model_name not in allowed_models:
+                    # Try to find a match in the response
+                    for allowed in allowed_models:
+                        if allowed.lower() in auto_model_response.lower():
+                            model_name = allowed
+                            break
+                    else:
+                        model_name = "CNN"  # Default fallback
+                
+                st.subheader("🎯 Agent's Model Recommendation:")
+                st.success(f"**Selected Model: {model_name}**")
+                
+                # Update training data to include just the model name
+                training_data += f"Agent's recommended model: {model_name}\n"
+
             st.session_state.messages.append({"role": "user", "content": training_data})
             with st.chat_message("assistant"):
                 try:
                     with st.spinner("⚙️ Training the model..."):
                         response = asyncio.run(chat_with_agent(st.session_state.messages))
                     st.session_state.messages.append({"role": "assistant", "content": response})
-                    st.success("Model training has started on CPU due to GPU limitations!")
-
-                    st.markdown(ToolWrapper.model_training(training_data))
+                    
+                    # Execute the training code and display results
+                    training_result = ToolWrapper.model_training(response)
+                    
+                    # Display the extracted Python code before training
+                    if isinstance(training_result, dict):
+                        st.subheader("🐍 Generated Python Training Code:")
+                        st.code(training_result["extracted_code"], language="python")
+                        
+                        st.success("Model training has started on CPU due to GPU limitations!")
+                        
+                        # Now execute the training code
+                        with st.spinner("⚙️ Executing training code..."):
+                            execution_result = ToolWrapper.execute_training_code()
+                        
+                        # Display execution output
+                        if execution_result["stdout"]:
+                            st.subheader("📋 Training Output:")
+                            st.text(execution_result["stdout"])
+                    else:
+                        # Fallback for old format
+                        st.markdown(training_result)
 
                     model_files = glob.glob("*.keras") + glob.glob("*.h5") + glob.glob("*.pb") + \
                                 glob.glob("*.pt") + glob.glob("*.pkl") + glob.glob("*.sav")
@@ -101,7 +178,7 @@ with col1:
             st.session_state.uploaded_image = uploaded_image
 
         if st.session_state.uploaded_image:
-            st.image(st.session_state.uploaded_image, caption="Uploaded Image", width=200, height = 250)
+            st.image(st.session_state.uploaded_image, caption="Uploaded Image", width=200)
 
             image_bytes = st.session_state.uploaded_image.read()
             encoded_image = base64.b64encode(image_bytes).decode("utf-8")
@@ -170,16 +247,9 @@ with st.sidebar:
     
     # --- Chat Input ---
     if prompt := st.chat_input("Your message"):
-        # Button to clear chat and reset the image
-            # st.session_state.messages.append({"role": "user", "content": prompt})
         with st.chat_message("user"):
             st.markdown(prompt)
         st.session_state.last_prompt = prompt
-
-        # with st.chat_message("assistant"):
-        # for msg in reversed(st.session_state.messages):
-        #     with st.chat_message(msg["role"]):
-        #         st.markdown(msg["content"])
 
         messages = [msg for msg in st.session_state.messages]
         messages.append({"role": "user", "content": prompt})

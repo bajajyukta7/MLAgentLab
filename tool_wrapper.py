@@ -5,6 +5,7 @@ import sys
 import subprocess
 from autogen_core.tools import FunctionTool
 import os
+import glob
 from azure.search.documents import SearchClient
 # import user_proxy_agent
 from azure.core.credentials import AzureKeyCredential
@@ -70,15 +71,96 @@ class ToolWrapper:
     
     @staticmethod
     def model_training(model_training_code:str) -> str :
-        # print("Training model with code:\n", model_training_code)
+        # Extract Python code from the response (remove formatting and get code blocks)
+        print("Raw response received:\n", model_training_code)
+        
+        # Try to extract Python code from markdown code blocks
+        python_code_pattern = r'```(?:python|py)?\s*(.*?)```'
+        code_matches = re.findall(python_code_pattern, model_training_code, re.DOTALL)
+        
+        if code_matches:
+            # Use the first (or largest) code block found
+            extracted_code = max(code_matches, key=len).strip()
+            print("Extracted Python code:\n", extracted_code)
+        else:
+            # If no code blocks found, try to extract lines that look like Python code
+            lines = model_training_code.split('\n')
+            python_lines = []
+            for line in lines:
+                # Skip lines that are obviously not Python code
+                stripped_line = line.strip()
+                if (stripped_line and 
+                    not stripped_line.startswith('**🔹') and 
+                    not stripped_line.startswith('🛠') and
+                    not stripped_line.startswith('##') and
+                    not stripped_line.startswith('###') and
+                    not stripped_line.startswith('MLEAgent:') and
+                    not stripped_line.startswith('InferenceAgent:') and
+                    not stripped_line.startswith('SelectorAgent:') and
+                    (stripped_line.startswith('import ') or 
+                     stripped_line.startswith('from ') or
+                     'import' in stripped_line or
+                     '=' in stripped_line or
+                     'def ' in stripped_line or
+                     'class ' in stripped_line or
+                     'if ' in stripped_line or
+                     'for ' in stripped_line or
+                     'while ' in stripped_line or
+                     'with ' in stripped_line or
+                     'try:' in stripped_line or
+                     'except' in stripped_line or
+                     stripped_line.endswith(':') or
+                     'print(' in stripped_line or
+                     'model.' in stripped_line or
+                     '.fit(' in stripped_line or
+                     '.compile(' in stripped_line or
+                     '.evaluate(' in stripped_line or
+                     '.predict(' in stripped_line or
+                     'tf.' in stripped_line or
+                     'keras.' in stripped_line or
+                     'np.' in stripped_line)):
+                    python_lines.append(line)
+            
+            if python_lines:
+                extracted_code = '\n'.join(python_lines)
+                print("Extracted Python code from lines:\n", extracted_code)
+            else:
+                # Fallback: use the original code as-is
+                extracted_code = model_training_code
+                print("No Python code extraction possible, using original:\n", extracted_code)
+        
+        # Write the extracted code to file
         with open("train_model_code.py", "w") as f:
-            f.write(model_training_code)
-        result = subprocess.run([sys.executable, "train_model_code.py"], capture_output=True, text=True)
-        print("STDOUT:\n", result.stdout)
-        print("STDERR:\n", result.stderr)
-        # accuracy_matches = re.findall(r'accuracy:\s+([0-9.]+)', result.stdout)
-        # training_accuracies = [float(acc) for acc in accuracy_matches]
-        return f"```bash\n{result.stdout}\n```"
+            f.write(extracted_code)
+        
+        # Return the extracted code first (execution will be done separately)
+        return {
+            "extracted_code": extracted_code,
+            "stdout": "",
+            "stderr": "",
+            "returncode": 0
+        }
+    
+    @staticmethod
+    def execute_training_code() -> dict:
+        """Execute the previously extracted training code"""
+        try:
+            # Execute the Python code
+            result = subprocess.run([sys.executable, "train_model_code.py"], capture_output=True, text=True)
+            print("STDOUT:\n", result.stdout)
+            print("STDERR:\n", result.stderr)
+            
+            return {
+                "stdout": result.stdout,
+                "stderr": result.stderr,
+                "returncode": result.returncode
+            }
+        except Exception as e:
+            return {
+                "stdout": "",
+                "stderr": f"Error executing training code: {str(e)}",
+                "returncode": 1
+            }
        
     @staticmethod
     def get_model_training_tool():
@@ -118,7 +200,27 @@ class ToolWrapper:
             image = np.expand_dims(image, axis=0)
             print(f"Step 3: Image shape after expand_dims: {image.shape}")
 
-            model_path = r"Q:\MLAgentLab\cat_dog_classifier.h5"
+            # Look for model files in the current directory
+            model_files = glob.glob("*.h5") + glob.glob("*.keras") + glob.glob("*cat*dog*.h5")
+            if model_files:
+                model_path = model_files[0]  # Use the first model file found
+            else:
+                # Fallback to common model names in current directory
+                possible_paths = [
+                    "cat_dog_classifier.h5",
+                    "cat_dog_model.h5", 
+                    "model.h5",
+                    "best_model.h5"
+                ]
+                model_path = None
+                for path in possible_paths:
+                    if os.path.exists(path):
+                        model_path = path
+                        break
+                
+                if model_path is None:
+                    return "Error: No trained model found. Please train a model first."
+            
             print(f"Step 4: Loading model from {model_path}")
             model = tf.keras.models.load_model(model_path)
 
