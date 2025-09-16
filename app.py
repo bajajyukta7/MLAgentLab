@@ -5,6 +5,7 @@ import uuid
 import asyncio
 import base64
 import glob
+import time
 from PIL import Image
 from tool_wrapper import ToolWrapper
 from swarm_team import chat_with_agent
@@ -130,7 +131,7 @@ with col1:
                     
                     # Display the extracted Python code before training
                     if isinstance(training_result, dict):
-                        st.subheader("🐍 Generated Python Training Code:")
+                        st.subheader("Generated Python Training Code:")
                         st.code(training_result["extracted_code"], language="python")
                         
                         st.success("Model training has started on CPU due to GPU limitations!")
@@ -149,20 +150,67 @@ with col1:
 
                     model_files = glob.glob("*.keras") + glob.glob("*.h5") + glob.glob("*.pb") + \
                                 glob.glob("*.pt") + glob.glob("*.pkl") + glob.glob("*.sav")
+                    
+                    # Store model files in session state to persist after download button clicks
+                    st.session_state.trained_models = model_files
+                    
                     if model_files:
-                        model_path = model_files[0]
-                        st.success(f"Trained Model: {model_path}")
-                        with open(model_path, "rb") as f:
-                            st.download_button(
-                                label="⬇️ Download Trained Model",
-                                data=f,
-                                file_name=os.path.basename(model_path),
-                                mime="application/octet-stream"
-                            )
+                        # Sort by modification time and get the latest file
+                        latest_model = max(model_files, key=lambda x: os.path.getmtime(x))
+                        file_size = os.path.getsize(latest_model) / (1024*1024)  # Size in MB
+                        
+                        st.success(f"✅ Latest trained model:")
+                        st.info(f"📁 {latest_model} ({file_size:.2f} MB)")
+                        
+                        try:
+                            with open(latest_model, "rb") as f:
+                                model_data = f.read()
+                                st.download_button(
+                                    label=f"⬇️ Download {os.path.basename(latest_model)}",
+                                    data=model_data,
+                                    file_name=os.path.basename(latest_model),
+                                    mime="application/octet-stream",
+                                    key=f"download_latest_{latest_model}"
+                                )
+                        except Exception as e:
+                            st.error(f"Error reading {latest_model}: {str(e)}")
                     else:
                         st.warning("No model file found after training.")
                 except Exception as e:
                     st.error(f"Error during model training: {str(e)}")
+
+    # Show available models section (persists even after button clicks)
+    st.subheader("📁 Latest Trained Model")
+    available_models = glob.glob("*.keras") + glob.glob("*.h5") + glob.glob("*.pb") + \
+                      glob.glob("*.pt") + glob.glob("*.pkl") + glob.glob("*.sav")
+    
+    if available_models:
+        # Get the latest model based on modification time
+        latest_model = max(available_models, key=lambda x: os.path.getmtime(x))
+        
+        col_info, col_download = st.columns([2, 1])
+        
+        with col_info:
+            file_size = os.path.getsize(latest_model) / (1024*1024)  # Size in MB
+            file_time = os.path.getmtime(latest_model)  # Use modification time
+            st.write(f"**{latest_model}**")
+            st.caption(f"Size: {file_size:.2f} MB | Modified: {time.ctime(file_time)}")
+        
+        with col_download:
+            try:
+                with open(latest_model, "rb") as f:
+                    model_data = f.read()
+                    st.download_button(
+                        label="⬇️ Download",
+                        data=model_data,
+                        file_name=os.path.basename(latest_model),
+                        mime="application/octet-stream",
+                        key=f"persistent_download_latest_{latest_model.replace('.', '_')}"
+                    )
+            except Exception as e:
+                st.error(f"Error: {str(e)}")
+    else:
+        st.info("No trained models found. Train a model to see it here.")
 
     st.divider()
 

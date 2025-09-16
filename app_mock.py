@@ -4,6 +4,7 @@ import uuid
 import time
 import base64
 import glob
+import random
 from PIL import Image
 from tool_wrapper import ToolWrapper
 
@@ -107,10 +108,41 @@ with col1:
                 st.success("Model training completed successfully!")
 
             st.markdown("### Trained Model Available for Download")
-            model_file = "cat_dog_classifier.h5"
-            # with open(model_file, "wb") as f:
-            #     f.write(b"dummy_model_data")
-            st.download_button(label="⬇️ Download Trained Model", data=open(model_file, "rb"), file_name=model_file, mime="application/octet-stream")
+            
+            # Check for actual .h5 model files
+            h5_files = glob.glob("*.h5")
+            
+            if h5_files:
+                st.success(f"✅ Found {len(h5_files)} trained model(s):")
+                
+                for model_file in h5_files:
+                    file_size = os.path.getsize(model_file) / (1024*1024)  # Size in MB
+                    st.info(f"📁 {model_file} ({file_size:.2f} MB)")
+                    
+                    try:
+                        with open(model_file, "rb") as f:
+                            st.download_button(
+                                label=f"⬇️ Download {model_file}", 
+                                data=f.read(), 
+                                file_name=model_file, 
+                                mime="application/octet-stream",
+                                key=f"download_{model_file}"
+                            )
+                    except Exception as e:
+                        st.error(f"Error reading {model_file}: {str(e)}")
+                
+                # Print detailed info about the models
+                st.subheader("📊 Model Details:")
+                for model_file in h5_files:
+                    with st.expander(f"Details for {model_file}"):
+                        file_stats = os.stat(model_file)
+                        st.write(f"**File Size:** {file_stats.st_size / (1024*1024):.2f} MB")
+                        st.write(f"**Created:** {time.ctime(file_stats.st_ctime)}")
+                        st.write(f"**Modified:** {time.ctime(file_stats.st_mtime)}")
+                        st.write(f"**Full Path:** {os.path.abspath(model_file)}")
+            else:
+                st.warning("⚠️ No .h5 model files found in current directory")
+                st.info("Models will be saved after training completes")
 
     st.divider()
 
@@ -125,9 +157,26 @@ with col1:
             st.text("Processing image for prediction...")
             wait_for(10)  # Simulate wait for processing
 
-            st.text("Predicting label: 'Cat' or 'Dog'...")
-            # wait_for(10)
-            st.success("Prediction: **Cat**")
+            # Dynamic prediction based on task description and model type
+            if task_desc and any(word in task_desc.lower() for word in ["cat", "dog", "animal"]):
+                predictions = ["Cat", "Dog"]
+                prediction_type = "Animal Classification"
+            elif task_desc and "flower" in task_desc.lower():
+                predictions = ["Rose", "Tulip", "Daisy", "Sunflower"]
+                prediction_type = "Flower Classification"
+            elif task_desc and any(word in task_desc.lower() for word in ["fashion", "clothing"]):
+                predictions = ["T-shirt", "Trouser", "Pullover", "Dress", "Coat"]
+                prediction_type = "Fashion Classification"
+            else:
+                predictions = ["Class A", "Class B", "Class C"]
+                prediction_type = "Generic Classification"
+            
+            import random
+            predicted_class = random.choice(predictions)
+            confidence = round(random.uniform(0.75, 0.98), 2)
+            
+            st.text(f"Predicting using {prediction_type} model...")
+            st.success(f"🎯 Prediction: **{predicted_class}** (Confidence: {confidence*100}%)")
 
 # --- Right Sidebar: Real-Time Logs ---
 with st.sidebar:
@@ -136,12 +185,26 @@ with st.sidebar:
     with st.expander("Training Log", expanded=True):
         st.text("Starting Data Processing...")
         st.text("Data resized to (256, 256)...")
-        st.text("Starting model training...")
-        st.text("Using CNN model for training...")
-        st.text("Training completed with an accuracy of 80%")
+        st.text(f"Starting model training with {model}...")
+        if model == "CNN":
+            st.text("Building convolutional layers...")
+            st.text("Adding pooling layers...")
+        elif model == "LSTM":
+            st.text("Building LSTM layers...")
+            st.text("Processing sequential data...")
+        elif model == "Random Forest":
+            st.text("Training decision trees...")
+            st.text("Ensemble learning in progress...")
+        
+        accuracy = round(random.uniform(0.78, 0.95), 2)
+        st.text(f"Training completed with accuracy: {accuracy*100}%")
     
     with st.expander("Test Log", expanded=False):
         st.text("Test image uploaded...")
-        st.text("Predicting image label...")
-        st.text("Prediction: Cat")
+        st.text("Preprocessing image...")
+        st.text("Running inference...")
+        if 'predicted_class' in locals():
+            st.text(f"Prediction: {predicted_class}")
+        else:
+            st.text("Prediction: Waiting for test input...")
 

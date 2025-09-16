@@ -18,7 +18,7 @@ from autogen_ext.code_executors.local import LocalCommandLineCodeExecutor
 from typing import Union
 from PIL import Image
 import numpy as np
-import tensorflow as tf
+# import tensorflow as tf  # Remove this import from top level
 import traceback
 import base64
 import io
@@ -145,15 +145,34 @@ class ToolWrapper:
     def execute_training_code() -> dict:
         """Execute the previously extracted training code"""
         try:
-            # Execute the Python code
-            result = subprocess.run([sys.executable, "train_model_code.py"], capture_output=True, text=True)
+            # Execute the Python code with better error handling
+            result = subprocess.run([sys.executable, "train_model_code.py"], 
+                                  capture_output=True, text=True, timeout=600)  # 10 minute timeout
             print("STDOUT:\n", result.stdout)
             print("STDERR:\n", result.stderr)
             
+            # Filter out common warnings that aren't critical
+            filtered_stderr = []
+            if result.stderr:
+                for line in result.stderr.split('\n'):
+                    if not any(warning in line.lower() for warning in [
+                        'warning: failed to remove contents',
+                        'notice] a new release of pip',
+                        'warning:',
+                        'you can safely remove it manually'
+                    ]):
+                        filtered_stderr.append(line)
+            
             return {
                 "stdout": result.stdout,
-                "stderr": result.stderr,
+                "stderr": '\n'.join(filtered_stderr),
                 "returncode": result.returncode
+            }
+        except subprocess.TimeoutExpired:
+            return {
+                "stdout": "",
+                "stderr": "Training timed out after 10 minutes. Please try with a smaller dataset or simpler model.",
+                "returncode": 1
             }
         except Exception as e:
             return {
@@ -173,6 +192,14 @@ class ToolWrapper:
     @staticmethod
     def model_test(image_input) -> str:
         try:
+            # Lazy import TensorFlow to avoid startup issues
+            try:
+                import tensorflow as tf
+            except ImportError as e:
+                return f"Error: TensorFlow not properly installed. {str(e)}"
+            except Exception as e:
+                return f"Error: TensorFlow import failed. {str(e)}"
+            
             print("Step 0: Entered model_test")
 
             img_height, img_width = 150, 150
